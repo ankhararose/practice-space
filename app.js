@@ -15,9 +15,10 @@
       { kind: "intro" },
       ...SX.intake.map((q) => Object.assign({ kind: "text" }, q)),
       { kind: "scale", key: "desire", eyebrow: "Desire", q: SX.desireQ },
-      { kind: "identity" },
+      { kind: "sketch" },
       { kind: "embody" },
       ...LEVELS.map((l) => ({ kind: "level", level: l.id })),
+      { kind: "identity" },
       { kind: "switch" },
       { kind: "close" }
     ];
@@ -144,7 +145,7 @@
 
   // Identity Session (steps are built in setContent)
   route("/session(?:/(\\d+))?", (n) => {
-    if (!S.draft) S.draft = { step: 0, intake: {}, statement: S.identity ? S.identity.statement : "", levels: Object.assign({}, S.identity && S.identity.levels), switchCue: S.identity ? S.identity.switchCue : "" };
+    if (!S.draft) S.draft = { step: 0, intake: {}, statement: S.identity ? S.identity.statement : "", sketch: S.identity ? (S.identity.sketch || S.identity.statement) : "", levels: Object.assign({}, S.identity && S.identity.levels), switchCue: S.identity ? S.identity.switchCue : "" };
     const d = S.draft;
     let i = n != null ? Math.min(Number(n), SESSION.length - 1) : d.step;
     d.step = i; save();
@@ -174,11 +175,21 @@
         <input type="range" id="ans" min="1" max="10" value="${v}">
         <div class="scale"><span>1 · a little</span><span>10 · completely</span></div>`;
       onNext = () => { d.intake[st.key] = Number($("#ans").value); };
-    } else if (st.kind === "identity") {
+    } else if (st.kind === "sketch") {
       body = `<div class="eyebrow">Your next-level identity</div>
+        <p class="prompt">${esc(SX.sketchQ)}</p>
+        <p class="muted">${esc(SX.sketchHelp)}</p>
+        ${d.intake.opens ? `<div class="card"><div class="faint">What opens for you</div><div>${esc(d.intake.opens)}</div></div>` : ""}
+        <textarea id="ans" style="min-height:90px" placeholder="${esc(SX.sketchHint)}">${esc(d.sketch || "")}</textarea>`;
+      canNext = () => $("#ans").value.trim().length > 2;
+      onNext = () => { d.sketch = $("#ans").value.trim(); };
+    } else if (st.kind === "identity") {
+      const mine = LEVELS.filter((l) => d.levels[l.id]);
+      body = `<div class="eyebrow">${esc(SX.iamEyebrow)}</div>
         <p class="prompt">${esc(SX.identityQ)}</p>
         <p class="muted">${esc(SX.identityHelp)}</p>
-        ${d.intake.opens ? `<div class="card"><div class="faint">What opens for you</div><div>${esc(d.intake.opens)}</div></div>` : ""}
+        <div class="card"><div class="faint">Your next-level self</div><div class="serif" style="color:var(--gold-2)">${esc(d.sketch || "")}</div>
+          ${mine.map((l) => `<div class="faint" style="margin-top:10px">${esc(l.facet)}</div><div>${esc(d.levels[l.id])}</div>`).join("")}</div>
         <textarea id="ans" style="min-height:90px" placeholder="I am…">${esc(d.statement || "")}</textarea>
         <p class="faint">${esc(SX.identityExamples)}</p>`;
       canNext = () => $("#ans").value.trim().length > 2;
@@ -187,14 +198,14 @@
       const E = SX.embody;
       body = `<div class="eyebrow">${esc(E.eyebrow)}</div>
         <h1>${esc(E.title)}</h1>
-        <div class="card"><div class="faint">Your next-level identity</div><div class="serif" style="color:var(--gold-2);font-size:19px">${esc(d.statement)}</div></div>
+        <div class="card"><div class="faint">Your next-level identity</div><div class="serif" style="color:var(--gold-2);font-size:19px">${esc(d.sketch || d.statement)}</div></div>
         <div class="breath" aria-hidden="true"><i></i></div>
         ${E.lines.map((t, k) => `<p class="${k ? "muted" : "prompt"}">${esc(t)}</p>`).join("")}`;
     } else if (st.kind === "level") {
       const l = level(st.level);
       const val = d.levels[l.id] || "";
       body = `<div class="eyebrow">Level ${l.id} of 7 · ${esc(l.name)}</div>
-        <div class="card"><div class="faint">Your next-level identity</div><div class="serif" style="color:var(--gold-2);font-size:19px">${esc(d.statement)}</div></div>
+        <div class="card"><div class="faint">Your next-level identity</div><div class="serif" style="color:var(--gold-2);font-size:19px">${esc(d.sketch || d.statement)}</div></div>
         <p class="prompt">${esc(SX.levelAsk[l.id])}</p>
         <p class="faint">${esc(SX.levelHelp)}</p>
         <textarea id="ans" style="min-height:110px" placeholder="${esc(l.hint)}">${esc(val)}</textarea>`;
@@ -217,13 +228,13 @@
 
     const last = i === SESSION.length - 1;
     view.innerHTML = `<div class="fade-in">${top}${body}
-      <div class="btns"><button class="btn" id="next">${last ? "Anchor my Identity Switch" : (i === 0 ? "Let's begin" : st.kind === "embody" ? esc(SX.embody.button) : "Continue")}</button>
+      <div class="btns"><button class="btn" id="next">${last ? "Anchor my Identity Switch" : (i === 0 ? esc(SX.introButton || "Let's begin") : st.kind === "embody" ? esc(SX.embody.button) : "Continue")}</button>
       ${st.kind === "text" ? `<button class="btn quiet" id="skip">Skip this one</button>` : ""}</div></div>`;
 
     const nextBtn = $("#next");
     const refresh = () => { nextBtn.disabled = !canNext(); };
     if (st.kind === "scale") $("#ans").addEventListener("input", (e) => { $("#num").textContent = e.target.value; });
-    if (st.kind === "identity") $("#ans").addEventListener("input", refresh);
+    if (st.kind === "identity" || st.kind === "sketch") $("#ans").addEventListener("input", refresh);
     if (st.kind === "switch") {
       view.querySelectorAll(".choice").forEach((b) => b.addEventListener("click", () => {
         d.switchCue = b.dataset.c; $("#own").value = "";
@@ -247,7 +258,7 @@
       if (S.identity && S.identity.statement && S.identity.statement !== d.statement) {
         S.past.unshift(Object.assign({ endedAt: new Date().toISOString() }, S.identity));
       }
-      S.identity = { statement: d.statement, levels: d.levels, intake: d.intake, switchCue: d.switchCue, createdAt: (S.identity && S.identity.statement === d.statement) ? S.identity.createdAt : new Date().toISOString(), switchInstalled: false };
+      S.identity = { statement: d.statement, sketch: d.sketch, levels: d.levels, intake: d.intake, switchCue: d.switchCue, createdAt: (S.identity && S.identity.statement === d.statement) ? S.identity.createdAt : new Date().toISOString(), switchInstalled: false };
       S.draft = null; save();
       openSwitch(true);
     });
