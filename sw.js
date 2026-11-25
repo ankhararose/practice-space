@@ -1,6 +1,6 @@
 // ID7 offline support: keeps the app working without internet.
 // Bump VERSION whenever app files change so phones pick up the update.
-const VERSION = "id7-202611251350";
+const VERSION = "id7-202611251712";
 const FILES = ["./", "index.html", "styles.css", "app.js", "content.enc.json", "manifest.webmanifest", "icons/icon-180.png", "icons/icon-192.png", "icons/icon-512.png"];
 
 self.addEventListener("install", (e) => {

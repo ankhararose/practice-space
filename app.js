@@ -16,6 +16,7 @@
       ...SX.intake.map((q) => Object.assign({ kind: "text" }, q)),
       { kind: "scale", key: "desire", eyebrow: "Desire", q: SX.desireQ },
       { kind: "identity" },
+      { kind: "embody" },
       ...LEVELS.map((l) => ({ kind: "level", level: l.id })),
       { kind: "switch" },
       { kind: "close" }
@@ -89,10 +90,12 @@
     if (!list.length) return null;
     return list[hash(todayKey()) % list.length];
   }
+  // A level answer as a reminder line ("What I see: golden light…"); older I-statements stay as they are
+  const levelLine = (l, v) => (/^(i|through)\b/i.test(v) ? v : l.facet + ": " + v);
   function returnLine() {
     const pool = RETURNS.slice();
     if (S.identity) {
-      LEVELS.forEach((l) => { const v = S.identity.levels && S.identity.levels[l.id]; if (v) pool.push(v); });
+      LEVELS.forEach((l) => { const v = S.identity.levels && S.identity.levels[l.id]; if (v) pool.push(levelLine(l, v)); });
     }
     const slot = Math.floor(Date.now() / (1000 * 60 * 60 * 3)); // changes every 3 hours
     return pool[hash(String(slot)) % pool.length];
@@ -128,7 +131,7 @@
         <div class="eyebrow">${esc(SX.methodName || "ID7")}</div>
         <h1>Welcome to ID7</h1>
         <p class="prompt muted">Your current identity is your baseline. Left alone, you return to it.</p>
-        <p class="muted">ID7 helps you keep coming back to the identity you are choosing, through all 7 levels of I AM, until it becomes your new normal.</p>
+        <p class="muted">ID7 helps you keep coming back to your next-level identity, through all 7 levels of I AM, until it becomes your new normal.</p>
         <div class="card">
           <p class="faint" style="margin:0">ID7 is a personal practice tool, not therapy or a substitute for mental-health care. Go at your own pace, and stop any practice whenever you need to.</p>
         </div>
@@ -172,7 +175,7 @@
         <div class="scale"><span>1 · a little</span><span>10 · completely</span></div>`;
       onNext = () => { d.intake[st.key] = Number($("#ans").value); };
     } else if (st.kind === "identity") {
-      body = `<div class="eyebrow">Your identity</div>
+      body = `<div class="eyebrow">Your next-level identity</div>
         <p class="prompt">${esc(SX.identityQ)}</p>
         <p class="muted">${esc(SX.identityHelp)}</p>
         ${d.intake.opens ? `<div class="card"><div class="faint">What opens for you</div><div>${esc(d.intake.opens)}</div></div>` : ""}
@@ -180,18 +183,22 @@
         <p class="faint">${esc(SX.identityExamples)}</p>`;
       canNext = () => $("#ans").value.trim().length > 2;
       onNext = () => { d.statement = $("#ans").value.trim(); };
+    } else if (st.kind === "embody") {
+      const E = SX.embody;
+      body = `<div class="eyebrow">${esc(E.eyebrow)}</div>
+        <h1>${esc(E.title)}</h1>
+        <div class="card"><div class="faint">Your next-level identity</div><div class="serif" style="color:var(--gold-2);font-size:19px">${esc(d.statement)}</div></div>
+        <div class="breath" aria-hidden="true"><i></i></div>
+        ${E.lines.map((t, k) => `<p class="${k ? "muted" : "prompt"}">${esc(t)}</p>`).join("")}`;
     } else if (st.kind === "level") {
       const l = level(st.level);
       const val = d.levels[l.id] || "";
       body = `<div class="eyebrow">Level ${l.id} of 7 · ${esc(l.name)}</div>
-        <div class="card"><div class="faint">Your identity</div><div class="serif" style="color:var(--gold-2);font-size:19px">${esc(d.statement)}</div></div>
+        <div class="card"><div class="faint">Your next-level identity</div><div class="serif" style="color:var(--gold-2);font-size:19px">${esc(d.statement)}</div></div>
         <p class="prompt">${esc(SX.levelAsk[l.id])}</p>
-        <textarea id="ans" style="min-height:100px" placeholder="${esc(l.stem.replace("…", " …"))}">${esc(val || l.stem.replace("…", " "))}</textarea>
-        <p class="faint">Begin with "${esc(l.stem)}". This becomes one of your I AM statements.</p>`;
-      onNext = () => {
-        const v = $("#ans").value.trim();
-        d.levels[l.id] = v && v !== l.stem.replace("…", "").trim() ? v : "";
-      };
+        <p class="faint">${esc(SX.levelHelp)}</p>
+        <textarea id="ans" style="min-height:110px" placeholder="${esc(l.hint)}">${esc(val)}</textarea>`;
+      onNext = () => { d.levels[l.id] = $("#ans").value.trim(); };
     } else if (st.kind === "switch") {
       const cues = SX.switchCues;
       body = `<div class="eyebrow">Identity Switch</div>
@@ -210,7 +217,7 @@
 
     const last = i === SESSION.length - 1;
     view.innerHTML = `<div class="fade-in">${top}${body}
-      <div class="btns"><button class="btn" id="next">${last ? "Anchor my Identity Switch" : (i === 0 ? "Let's begin" : "Continue")}</button>
+      <div class="btns"><button class="btn" id="next">${last ? "Anchor my Identity Switch" : (i === 0 ? "Let's begin" : st.kind === "embody" ? esc(SX.embody.button) : "Continue")}</button>
       ${st.kind === "text" ? `<button class="btn quiet" id="skip">Skip this one</button>` : ""}</div></div>`;
 
     const nextBtn = $("#next");
@@ -299,7 +306,7 @@
     view.innerHTML = `<div class="fade-in">
       <div class="eyebrow">${greet}</div>
       <div class="card glow">
-        <div class="faint">I am choosing to be</div>
+        <div class="faint">My next-level identity</div>
         <div class="identity">${esc(I.statement)}</div>
         <button class="btn" id="switch" style="margin-top:10px">Identity Switch · step in</button>
       </div>
@@ -313,7 +320,7 @@
         <div class="row"><span class="badge">${lv.id}</span>
           <div class="grow"><div class="eyebrow" style="margin:0">Today's level</div><div class="serif" style="font-size:19px">${esc(lv.name)}</div></div>
           <span class="chev">›</span></div>
-        ${iam ? `<p class="serif" style="margin:12px 0 0;color:var(--gold-2)">${esc(iam)}</p>` : `<p class="faint" style="margin:12px 0 0">Add your "${esc(lv.stem)}" statement →</p>`}
+        ${iam ? `<div class="faint" style="margin-top:12px">${esc(lv.facet)}</div><p class="serif" style="margin:2px 0 0;color:var(--gold-2)">${esc(iam)}</p>` : `<p class="faint" style="margin:12px 0 0">Add ${esc(lv.facet.toLowerCase())} →</p>`}
       </a>
 
       ${p ? `<a class="card" href="#/practice/${esc(p.id)}">
@@ -348,7 +355,7 @@
         const mine = I.levels && I.levels[l.id];
         return `<a class="item" href="#/level/${l.id}"><span class="badge ${mine ? "fill" : ""}">${l.id}</span>
           <div class="grow"><div class="serif" style="font-size:18px">${esc(l.name)}</div>
-          <div class="faint">${mine ? esc(mine) : esc(l.stem)}</div></div>
+          <div class="faint">${mine ? esc(mine) : esc(l.facet)}</div></div>
           <span class="faint">${n}</span><span class="chev">›</span></a>`;
       }).join("")}</div></div>`;
   }, { tab: "levels" });
@@ -366,9 +373,9 @@
       <div class="row" style="margin:6px 0 10px"><span class="badge fill">${l.id}</span><h1 style="margin:0">${esc(l.name)}</h1></div>
       ${l.blurb ? `<p class="muted">${esc(l.blurb)}</p>` : ""}
       <div class="card">
-        <label class="lbl" style="margin-top:0">My "${esc(l.stem)}" statement</label>
-        <textarea id="iam" style="min-height:80px">${esc((I.levels && I.levels[l.id]) || l.stem.replace("…", " "))}</textarea>
-        <div class="btns"><button class="btn small ghost" id="saveiam" style="justify-self:start">Save statement</button></div>
+        <label class="lbl" style="margin-top:0">${esc(l.facet)}, as my next-level self</label>
+        <textarea id="iam" style="min-height:80px" placeholder="${esc(l.hint)}">${esc((I.levels && I.levels[l.id]) || "")}</textarea>
+        <div class="btns"><button class="btn small ghost" id="saveiam" style="justify-self:start">Save</button></div>
       </div>
       <h3>Practices</h3>
       <div class="card list">${ps.length ? ps.map(item).join("") : `<p class="faint" style="margin:0">No practices yet.</p>`}</div>
@@ -490,7 +497,7 @@
       <div class="eyebrow">ID7</div><h1>More</h1>
       <div class="card list">
         <a class="item" href="#/reminders"><div class="grow"><div>Reminders</div><div class="faint">Set up iPhone reminders with your statements</div></div><span class="chev">›</span></a>
-        <a class="item" href="#/identity"><div class="grow"><div>My identity</div><div class="faint">See your full I AM set</div></div><span class="chev">›</span></a>
+        <a class="item" href="#/identity"><div class="grow"><div>My next-level identity</div><div class="faint">See it across all 7 levels</div></div><span class="chev">›</span></a>
         <a class="item" href="#/session/0" id="redo"><div class="grow"><div>Redo my Identity Session</div><div class="faint">Refine this identity or choose your next level</div></div><span class="chev">›</span></a>
         <a class="item" href="#/backup"><div class="grow"><div>Backup &amp; restore</div><div class="faint">Your data lives only on this phone</div></div><span class="chev">›</span></a>
       </div>
@@ -518,7 +525,7 @@
     const lines = [];
     if (S.identity) {
       lines.push(S.identity.statement);
-      LEVELS.forEach((l) => { const v = S.identity.levels && S.identity.levels[l.id]; if (v) lines.push(v); });
+      LEVELS.forEach((l) => { const v = S.identity.levels && S.identity.levels[l.id]; if (v) lines.push(levelLine(l, v)); });
       if (S.identity.switchCue) lines.push(S.identity.switchCue + ". Step in.");
     }
     RETURNS.forEach((r) => lines.push(fillPlain(r)));

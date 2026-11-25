@@ -227,3 +227,9 @@ ol.howto { padding-left: 22px; margin: 0; }
 ol.howto li { margin-bottom: 10px; }
 .spacer { height: 8px; }
 hr.soft { border: 0; border-top: 1px solid var(--line); margin: 18px 0; }
+
+/* Embodiment pause: a slow breathing circle */
+.breath { display: flex; justify-content: center; margin: 18px 0 6px; }
+.breath i { width: 64px; height: 64px; border-radius: 50%; background: radial-gradient(circle, var(--gold-2), transparent 70%); animation: breathe 10s ease-in-out infinite; }
+@keyframes breathe { 0%, 100% { transform: scale(.7); opacity: .35; } 45%, 55% { transform: scale(1.25); opacity: .8; } }
+@media (prefers-reduced-motion: reduce) { .breath i { animation: none; opacity: .6; } }
